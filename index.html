@@ -37,36 +37,13 @@
 
         /* 그리드 및 카드 */
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
-        .card { background: var(--bg-card); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 20px; padding: 25px; }
+        .card { background: var(--bg-card); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 20px; padding: 25px; margin-bottom: 20px;}
         .card h3 { font-size: 16px; color: var(--primary); margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 10px; }
 
-        /* ⭐ 범죄 리스트 정렬 핵심 스타일 ⭐ */
-        .crime-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* 양 끝 정렬 */
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            gap: 10px;
-        }
-        .crime-label {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            cursor: pointer;
-            flex: 1; /* 이름이 길어지면 공간 차지 */
-            font-size: 14.5px;
-            font-weight: 500;
-        }
-        .crime-label input[type="checkbox"] {
-            width: 17px;
-            height: 17px;
-            cursor: pointer;
-        }
-        .crime-info {
-            text-align: right;
-            min-width: 100px; /* 금액 정렬 선 맞추기 */
-        }
+        .crime-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); gap: 10px; }
+        .crime-label { display: flex; align-items: center; gap: 12px; cursor: pointer; flex: 1; font-size: 14.5px; font-weight: 500; }
+        .crime-label input[type="checkbox"] { width: 17px; height: 17px; cursor: pointer; }
+        .crime-info { text-align: right; min-width: 100px; }
         .p-val { color: var(--accent); font-weight: 800; font-size: 14px; display: block; }
         .t-val { color: var(--danger); font-size: 12px; font-weight: 600; }
 
@@ -116,8 +93,7 @@
     </div>
 
     <div id="page-calc" class="page">
-        <div class="grid" id="calc-grid" style="padding-bottom: 120px;">
-        </div>
+        <div class="grid" id="calc-grid" style="padding-bottom: 120px;"></div>
 
         <div class="footer-bar">
             <div class="res-text">
@@ -242,9 +218,19 @@
         document.getElementById('total-t').innerText = `구금 ${tSum}분`;
     }
 
+    // 🚔 무적 복사 함수 (보안 연결 상관없이 작동)
     function copyRaw(t) {
-        navigator.clipboard.writeText(t);
-        // 토스트 알림 대신 alert 사용 (원하시면 커스텀 가능)
+        const tempInput = document.createElement("textarea");
+        tempInput.value = t;
+        document.body.appendChild(tempInput);
+        tempInput.select();
+        try {
+            document.execCommand('copy');
+            alert('복사되었습니다! 🚔');
+        } catch (err) {
+            alert('복사 실패! 브라우저 권한을 확인해주세요.');
+        }
+        document.body.removeChild(tempInput);
     }
 
     function copyAttend() {
@@ -264,14 +250,15 @@
     }
 
     function copyResult() {
-        if(selected.length === 0) return;
+        if(selected.length === 0) { alert('선택된 항목이 없습니다.'); return; }
         const res = `[정산 결과]\n죄목: ${selected.map(c => c.name).join(', ')}\n${document.getElementById('total-p').innerText}\n${document.getElementById('total-t').innerText}`;
         copyRaw(res);
     }
 
     function resetCalc() {
         selected = [];
-        document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+        document.querySelectorAll('#calc-grid input[type="checkbox"]').forEach(c => c.checked = false);
+        document.getElementById('bail-on').checked = false;
         updateCalc();
     }
 
