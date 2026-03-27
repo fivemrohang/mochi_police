@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mochi Police Control Center v2.2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-main: #050a18;
+            --bg-side: #0a1227;
+            --bg-card: rgba(30, 41, 59, 0.6);
+            --primary: #3b82f6;
+            --accent: #ffc947;
+            --danger: #ff5252;
+            --text: #e2e8f0;
+            --border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Pretendard', sans-serif; }
+        body { background-color: var(--bg-main); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+        /* 사이드바 */
+        aside { width: 260px; background: var(--bg-side); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 30px 20px; }
+        .logo { font-size: 20px; font-weight: 800; color: var(--accent); text-align: center; margin-bottom: 40px; }
+        .nav-item { list-style: none; padding: 15px; margin-bottom: 8px; border-radius: 12px; cursor: pointer; transition: 0.3s; color: #94a3b8; font-weight: 600; }
+        .nav-item.active { background: var(--primary); color: white; box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4); }
+
+        /* 메인 영역 */
+        main { flex: 1; padding: 40px; overflow-y: auto; position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .clock { font-family: monospace; color: var(--primary); font-size: 1.2rem; }
+
+        .page { display: none; animation: fadeIn 0.4s ease; }
+        .page.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* 그리드 및 카드 */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+        .card { background: var(--bg-card); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 20px; padding: 25px; }
+        .card h3 { font-size: 16px; color: var(--primary); margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 10px; }
+
+        /* ⭐ 범죄 리스트 정렬 핵심 스타일 ⭐ */
+        .crime-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* 양 끝 정렬 */
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            gap: 10px;
+        }
+        .crime-label {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            flex: 1; /* 이름이 길어지면 공간 차지 */
+            font-size: 14.5px;
+            font-weight: 500;
+        }
+        .crime-label input[type="checkbox"] {
+            width: 17px;
+            height: 17px;
+            cursor: pointer;
+        }
+        .crime-info {
+            text-align: right;
+            min-width: 100px; /* 금액 정렬 선 맞추기 */
+        }
+        .p-val { color: var(--accent); font-weight: 800; font-size: 14px; display: block; }
+        .t-val { color: var(--danger); font-size: 12px; font-weight: 600; }
+
+        /* 하단 정산바 */
+        .footer-bar {
+            position: fixed; bottom: 20px; left: 280px; right: 20px;
+            background: rgba(10, 18, 39, 0.95); border: 2px solid var(--primary);
+            border-radius: 20px; padding: 18px 40px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.6); z-index: 1000;
+        }
+        .res-text span { font-size: 1.4rem; font-weight: 800; margin-right: 25px; }
+
+        .btn-list { display: grid; gap: 10px; }
+        button { padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; transition: 0.2s; background: rgba(255,255,255,0.08); color: white; }
+        button:hover { background: var(--primary); transform: translateY(-2px); }
+        input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; background: #000; border: 1px solid var(--border); color: white; }
+    </style>
+</head>
+<body>
+
+<aside>
+    <div class="logo">🚔 MOCHI POLICE</div>
+    <div class="nav-item active" onclick="switchTab('notice', this)">📋 공지 시스템</div>
+    <div class="nav-item" onclick="switchTab('calc', this)">⚖️ 벌금 계산기</div>
+</aside>
+
+<main>
+    <div class="header">
+        <h2 id="title">공지 시스템</h2>
+        <div class="clock" id="clock">00:00:00</div>
+    </div>
+
+    <div id="page-notice" class="page active">
+        <div class="grid" id="notice-grid">
+            <div class="card">
+                <h3>👤 출석 & 수배</h3>
+                <input type="text" id="nick" placeholder="닉네임">
+                <input type="text" id="uid" placeholder="고유번호">
+                <input type="text" id="reason" placeholder="사유">
+                <div class="btn-list">
+                    <button onclick="copyAttend()" style="color:var(--accent)">출석 요구 복사</button>
+                    <button onclick="copyWanted()" style="color:var(--danger)">수배 공지 복사</button>
+                    <button onclick="copyRaw('/경찰청 수배 상황 종료되었습니다.')">수배 종료</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="page-calc" class="page">
+        <div class="grid" id="calc-grid" style="padding-bottom: 120px;">
+        </div>
+
+        <div class="footer-bar">
+            <div class="res-text">
+                <span style="color:var(--accent)" id="total-p">벌금 0원</span>
+                <span style="color:var(--danger)" id="total-t">구금 0분</span>
+            </div>
+            <div style="display:flex; gap:20px; align-items:center;">
+                <label style="cursor:pointer; font-weight: 600;"><input type="checkbox" id="bail-on" onchange="updateCalc()"> 보석금 적용</label>
+                <button onclick="resetCalc()" style="background:transparent; color:#94a3b8;">초기화</button>
+                <button onclick="copyResult()" style="background:var(--primary); padding:12px 25px; border-radius:15px; box-shadow: 0 4px 15px var(--border);">내역 복사</button>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    const DB = {
+        "강력/RP 범죄": [
+            ["ATM 강도", 50000000, 10], ["편의점 강도", 80000000, 10], ["빈집 털이", 50000000, 10],
+            ["보석상 습격", 250000000, 20], ["남부은행", 350000000, 20], ["즉흥 상황", 200000000, 20],
+            ["수배 알피", 200000000, 20], ["구속 영장", 600000000, 40]
+        ],
+        "경범죄 상황": [
+            ["소음 공해", 10000000, 0], ["불법 주정차", 10000000, 0], ["속도 위반", 10000000, 0],
+            ["신호 위반", 10000000, 0], ["불법 유턴", 10000000, 0], ["역주행", 10000000, 0],
+            ["인도 주행", 10000000, 0], ["기물 파손", 10000000, 0], ["스턴트 주행", 20000000, 0],
+            ["차량 파손", 50000000, 10], ["뺑소니 사고", 100000000, 20], ["폭주(400km↑)", 50000000, 20],
+            ["보복 운전", 200000000, 30]
+        ],
+        "중범죄 상황": [
+            ["난폭 운전", 50000000, 30], ["명예 훼손", 20000000, 10], ["일반 폭행", 100000000, 20],
+            ["불법물건소지", 80000000, 20], ["불법총기소지", 150000000, 20], ["증거 인멸", 200000000, 20],
+            ["차량 절도", 100000000, 30], ["시민 살인", 300000000, 30]
+        ],
+        "공무원 관련": [
+            ["관용차 절도시도", 100000000, 0], ["공무원 명예훼손", 200000000, 10], ["공무원 차량파손", 100000000, 20],
+            ["공무집행 방해", 150000000, 30], ["제한 구역침입", 400000000, 10], ["공무원 폭행", 300000000, 30],
+            ["공무원 차량절도", 400000000, 30], ["공무원 살인", 400000000, 40]
+        ]
+    };
+
+    const NOTICES = {
+        "ATM 상황": ["광장 밑 ATM", "신경 위 ATM", "은행 밑 ATM"],
+        "편의점 상황": ["남부 편의점", "신경 옆 편의점", "신경 위 편의점", "은행 뒤 편의점"],
+        "주요 상황": ["보석상", "남부은행", "남부 빈집", "헬기 이륙"]
+    };
+
+    let selected = [];
+
+    function init() {
+        const nGrid = document.getElementById('notice-grid');
+        for(let cat in NOTICES) {
+            let card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<h3>▮ ${cat}</h3>`;
+            let blist = document.createElement('div');
+            blist.className = 'btn-list';
+            NOTICES[cat].forEach(name => {
+                let btn = document.createElement('button');
+                btn.innerText = name;
+                btn.onclick = () => {
+                    let msg = name === "헬기 이륙" ? "/경찰청 경찰청 헬기 영공순찰로 인하여 이륙합니다." : `/경찰청 ╭《 ${name} 강도사건 발생 》╮ 경찰청이 출동합니다. 현 시간부로 사건 지점으로부터 2블럭이상 접근 시 공범으로 간주하여 사살 및 긴급체포 등 불이익이 발생할 수 있습니다. -『 경찰청 』-`;
+                    copyRaw(msg);
+                };
+                blist.appendChild(btn);
+            });
+            card.appendChild(blist);
+            nGrid.appendChild(card);
+        }
+
+        const cGrid = document.getElementById('calc-grid');
+        for(let cat in DB) {
+            let card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<h3>▮ ${cat}</h3>`;
+            DB[cat].forEach(([name, p, t]) => {
+                let row = document.createElement('div');
+                row.className = 'crime-row';
+                row.innerHTML = `
+                    <label class="crime-label"><input type="checkbox" onchange="toggleCrime('${name}', ${p}, ${t}, this)"> ${name}</label>
+                    <div class="crime-info">
+                        <span class="p-val">${p.toLocaleString()}원</span>
+                        <span class="t-val">${t > 0 ? t+'분' : ''}</span>
+                    </div>
+                `;
+                card.appendChild(row);
+            });
+            cGrid.appendChild(card);
+        }
+    }
+
+    function switchTab(t, el) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        document.getElementById(`page-${t}`).classList.add('active');
+        el.classList.add('active');
+        document.getElementById('title').innerText = el.innerText;
+    }
+
+    function toggleCrime(name, price, time, el) {
+        if(el.checked) selected.push({name, price, time});
+        else selected = selected.filter(c => c.name !== name);
+        updateCalc();
+    }
+
+    function updateCalc() {
+        let pSum = selected.reduce((a, b) => a + b.price, 0);
+        let tSum = selected.reduce((a, b) => a + b.time, 0);
+        let isBail = document.getElementById('bail-on').checked;
+
+        if(isBail) {
+            let isHeavy = selected.some(c => c.name.includes("은행") || c.name.includes("보석상"));
+            if(isHeavy) {
+                pSum += (Math.max(0, tSum - 10) * 5000000);
+                tSum = 10;
+            } else {
+                pSum += (tSum * 5000000);
+                tSum = 0;
+            }
+        }
+        document.getElementById('total-p').innerText = `벌금 ${pSum.toLocaleString()}원`;
+        document.getElementById('total-t').innerText = `구금 ${tSum}분`;
+    }
+
+    function copyRaw(t) {
+        navigator.clipboard.writeText(t);
+        // 토스트 알림 대신 alert 사용 (원하시면 커스텀 가능)
+    }
+
+    function copyAttend() {
+        const n = document.getElementById('nick').value || "미입력";
+        const u = document.getElementById('uid').value || "미입력";
+        const r = document.getElementById('reason').value || "미입력";
+        const time = new Date(Date.now() + 5 * 60000).toTimeString().substring(0, 5);
+        copyRaw(`/경찰청 [ 출석요구서 ]\n닉네임 : ${n}\n고유번호 : ${u}\n사유 : ${r}\n${time} 까지 출석바랍니다.\n-『 경찰청 』-`);
+    }
+
+    function copyWanted() {
+        const n = document.getElementById('nick').value || "미입력";
+        const u = document.getElementById('uid').value || "미입력";
+        const now = new Date().toTimeString().substring(0, 5);
+        const limit = new Date(Date.now() + 30 * 60000).toTimeString().substring(0, 5);
+        copyRaw(`/경찰청 [ 수배공지 ]\n닉네임 : ${n}\n고유번호 : ${u}\n${now} ~ ${limit} 수배알피 진행합니다.\n위치추적 시작하겠습니다.\n-『 경찰청 』-`);
+    }
+
+    function copyResult() {
+        if(selected.length === 0) return;
+        const res = `[정산 결과]\n죄목: ${selected.map(c => c.name).join(', ')}\n${document.getElementById('total-p').innerText}\n${document.getElementById('total-t').innerText}`;
+        copyRaw(res);
+    }
+
+    function resetCalc() {
+        selected = [];
+        document.querySelectorAll('input[type="checkbox"]').forEach(c => c.checked = false);
+        updateCalc();
+    }
+
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString('ko-KR', {hour12: false});
+    }, 1000);
+
+    init();
+</script>
+</body>
+</html>
