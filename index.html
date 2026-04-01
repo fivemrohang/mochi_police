@@ -114,7 +114,7 @@
         "강력/RP 범죄": [
             ["ATM 강도", 50000000, 10], ["편의점 강도", 80000000, 10], ["빈집 털이", 50000000, 10],
             ["보석상 습격", 250000000, 20], ["남부은행", 350000000, 20], ["즉흥 RP", 200000000, 20],
-            ["수배 RP", 200000000, 20], ["영장 RP", 600000000, 40]
+            ["수배 RP", 200000000, 20], ["영장 RP 최초 수배자", 600000000, 40], ["영장 RP 참여자", 300000000, 30]
         ],
         "경범죄 상황": [
             ["소음 공해", 10000000, 0], ["불법 주정차", 10000000, 0], ["속도 위반", 10000000, 0],
@@ -205,7 +205,14 @@
         let isBail = document.getElementById('bail-on').checked;
 
         if(isBail) {
-            let isHeavy = selected.some(c => c.name.includes("은행") || c.name.includes("보석상"));
+            // 필수구금 10분 적용 대상: 은행, 보석상, 즉흥 RP, 수배 RP (영장 RP는 제외)
+            let isHeavy = selected.some(c => 
+                c.name.includes("은행") || 
+                c.name.includes("보석상") || 
+                (c.name.includes("즉흥") && !c.name.includes("영장")) || 
+                (c.name.includes("수배") && !c.name.includes("영장"))
+            );
+            
             if(isHeavy) {
                 pSum += (Math.max(0, tSum - 10) * 5000000);
                 tSum = 10;
@@ -218,7 +225,7 @@
         document.getElementById('total-t').innerText = `구금 ${tSum}분`;
     }
 
-    // 🚔 무적 복사 함수 (보안 연결 상관없이 작동)
+    // 🚔 복사 함수
     function copyRaw(t) {
         const tempInput = document.createElement("textarea");
         tempInput.value = t;
@@ -228,7 +235,7 @@
             document.execCommand('copy');
             alert('복사되었습니다! 🚔');
         } catch (err) {
-            alert('복사 실패! 브라우저 권한을 확인해주세요.');
+            alert('복사 실패!');
         }
         document.body.removeChild(tempInput);
     }
