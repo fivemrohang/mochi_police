@@ -40,12 +40,27 @@
         .card { background: var(--bg-card); backdrop-filter: blur(10px); border: 1px solid var(--border); border-radius: 20px; padding: 25px; margin-bottom: 20px;}
         .card h3 { font-size: 16px; color: var(--primary); margin-bottom: 20px; border-left: 4px solid var(--primary); padding-left: 10px; }
 
-        .crime-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); gap: 10px; }
-        .crime-label { display: flex; align-items: center; gap: 12px; cursor: pointer; flex: 1; font-size: 14.5px; font-weight: 500; }
-        .crime-label input[type="checkbox"] { width: 17px; height: 17px; cursor: pointer; }
-        .crime-info { text-align: right; min-width: 100px; }
+        /* [디자인 변경] 클릭형 범죄 항목 */
+        .crime-row { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); 
+            cursor: pointer; transition: 0.2s; border-radius: 10px; margin-bottom: 4px;
+        }
+        .crime-row:hover { background: rgba(255,255,255,0.05); }
+        .crime-row.selected { background: rgba(59, 130, 246, 0.2); border: 1px solid var(--primary); }
+        
+        .crime-label { font-size: 14.5px; font-weight: 500; pointer-events: none; }
+        .crime-info { text-align: right; min-width: 100px; pointer-events: none; }
         .p-val { color: var(--accent); font-weight: 800; font-size: 14px; display: block; }
         .t-val { color: var(--danger); font-size: 12px; font-weight: 600; }
+
+        /* [디자인 변경] 슬라이드 토글 스위치 */
+        .switch { position: relative; display: inline-block; width: 50px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--primary); }
+        input:checked + .slider:before { transform: translateX(24px); }
 
         /* 하단 정산바 */
         .footer-bar {
@@ -59,7 +74,7 @@
         .btn-list { display: grid; gap: 10px; }
         button { padding: 12px; border: none; border-radius: 10px; cursor: pointer; font-weight: 700; transition: 0.2s; background: rgba(255,255,255,0.08); color: white; }
         button:hover { background: var(--primary); transform: translateY(-2px); }
-        input { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; background: #000; border: 1px solid var(--border); color: white; }
+        input[type="text"] { width: 100%; padding: 12px; margin-bottom: 10px; border-radius: 10px; background: #000; border: 1px solid var(--border); color: white; }
     </style>
 </head>
 <body>
@@ -101,7 +116,13 @@
                 <span style="color:var(--danger)" id="total-t">구금 0분</span>
             </div>
             <div style="display:flex; gap:20px; align-items:center;">
-                <label style="cursor:pointer; font-weight: 600;"><input type="checkbox" id="bail-on" onchange="updateCalc()"> 보석금 적용</label>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <label class="switch">
+                        <input type="checkbox" id="bail-on" onchange="updateCalc()">
+                        <span class="slider"></span>
+                    </label>
+                    <span style="font-weight:600; font-size:14px;">보석금 적용</span>
+                </div>
                 <button onclick="resetCalc()" style="background:transparent; color:#94a3b8;">초기화</button>
                 <button onclick="copyResult()" style="background:var(--primary); padding:12px 25px; border-radius:15px; box-shadow: 0 4px 15px var(--border);">내역 복사</button>
             </div>
@@ -172,8 +193,9 @@
             DB[cat].forEach(([name, p, t]) => {
                 let row = document.createElement('div');
                 row.className = 'crime-row';
+                row.onclick = () => toggleCrime(name, p, t, row); // 행 클릭으로 토글
                 row.innerHTML = `
-                    <label class="crime-label"><input type="checkbox" onchange="toggleCrime('${name}', ${p}, ${t}, this)"> ${name}</label>
+                    <div class="crime-label">${name}</div>
                     <div class="crime-info">
                         <span class="p-val">${p.toLocaleString()}원</span>
                         <span class="t-val">${t > 0 ? t+'분' : ''}</span>
@@ -193,9 +215,15 @@
         document.getElementById('title').innerText = el.innerText;
     }
 
-    function toggleCrime(name, price, time, el) {
-        if(el.checked) selected.push({name, price, time});
-        else selected = selected.filter(c => c.name !== name);
+    function toggleCrime(name, price, time, rowEl) {
+        const idx = selected.findIndex(c => c.name === name);
+        if(idx === -1) {
+            selected.push({name, price, time});
+            rowEl.classList.add('selected');
+        } else {
+            selected.splice(idx, 1);
+            rowEl.classList.remove('selected');
+        }
         updateCalc();
     }
 
@@ -205,7 +233,6 @@
         let isBail = document.getElementById('bail-on').checked;
 
         if(isBail) {
-            // 필수구금 10분 적용 대상: 은행, 보석상, 즉흥 RP, 수배 RP (영장 RP는 제외)
             let isHeavy = selected.some(c => 
                 c.name.includes("은행") || 
                 c.name.includes("보석상") || 
@@ -225,7 +252,6 @@
         document.getElementById('total-t').innerText = `구금 ${tSum}분`;
     }
 
-    // 🚔 복사 함수
     function copyRaw(t) {
         const tempInput = document.createElement("textarea");
         tempInput.value = t;
@@ -264,7 +290,7 @@
 
     function resetCalc() {
         selected = [];
-        document.querySelectorAll('#calc-grid input[type="checkbox"]').forEach(c => c.checked = false);
+        document.querySelectorAll('.crime-row').forEach(row => row.classList.remove('selected'));
         document.getElementById('bail-on').checked = false;
         updateCalc();
     }
